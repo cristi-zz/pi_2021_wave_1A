@@ -35,3 +35,5 @@ Daca tot nu merge, deschideti o consola si incercati sa dati comanda ``git fetch
 Spre deosebire de tutorialul de git, vom lucra direct in master, fara sa mai facem branch-uri. Deasemenea, cautati pe google
 despre *rebase*. NU il recomand a fi folosit, decat cu atentie.
 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Test commit
