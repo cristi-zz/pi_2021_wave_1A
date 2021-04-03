@@ -11,11 +11,11 @@
 void testOpenImage()
 {
 	char fname[MAX_PATH];
-	while(openFileDlg(fname))
+	while (openFileDlg(fname))
 	{
 		Mat src;
 		src = imread(fname);
-		imshow("opened image",src);
+		imshow("opened image", src);
 		waitKey();
 	}
 }
@@ -23,16 +23,16 @@ void testOpenImage()
 void testOpenImagesFld()
 {
 	char folderName[MAX_PATH];
-	if (openFolderDlg(folderName)==0)
+	if (openFolderDlg(folderName) == 0)
 		return;
 	char fname[MAX_PATH];
-	FileGetter fg(folderName,"bmp");
-	while(fg.getNextAbsFile(fname))
+	FileGetter fg(folderName, "bmp");
+	while (fg.getNextAbsFile(fname))
 	{
 		Mat src;
 		src = imread(fname);
-		imshow(fg.getFoundFileName(),src);
-		if (waitKey()==27) //ESC pressed
+		imshow(fg.getFoundFileName(), src);
+		if (waitKey() == 27) //ESC pressed
 			break;
 	}
 }
@@ -40,7 +40,7 @@ void testOpenImagesFld()
 void testColor2Gray()
 {
 	char fname[MAX_PATH];
-	while(openFileDlg(fname))
+	while (openFileDlg(fname))
 	{
 		Mat_<Vec3b> src = imread(fname, IMREAD_COLOR);
 
@@ -49,20 +49,20 @@ void testColor2Gray()
 
 		Mat_<uchar> dst(height, width);
 
-		for (int i=0; i<height; i++)
+		for (int i = 0; i < height; i++)
 		{
-			for (int j=0; j<width; j++)
+			for (int j = 0; j < width; j++)
 			{
-				Vec3b v3 = src(i,j);
+				Vec3b v3 = src(i, j);
 				uchar b = v3[0];
 				uchar g = v3[1];
 				uchar r = v3[2];
-				dst(i,j) = (r+g+b)/3;
+				dst(i, j) = (r + g + b) / 3;
 			}
 		}
-		
-		imshow("original image",src);
-		imshow("gray image",dst);
+
+		imshow("original image", src);
+		imshow("gray image", dst);
 		waitKey();
 	}
 }
@@ -78,7 +78,7 @@ std::vector<double> getLowVector(const std::vector<double>& arr)
 	for (auto i = 0; i < arr.size() / 2; i++)
 	{
 		result[i] = (arr[2 * i] + arr[2 * i + 1]) / 2.0f;
-	} 
+	}
 	return result;
 }
 
@@ -95,7 +95,7 @@ std::vector<double> getHighVector(const std::vector<double>& arr)
 std::vector<double> getLowVectorUpSample(const std::vector<double>& arr)
 {
 	std::vector<double> result(2 * arr.size());;
-	for (int i=0; i < result.size(); i++)
+	for (int i = 0; i < result.size(); i++)
 	{
 		result[i] = arr[i / 2];
 	}
@@ -114,7 +114,7 @@ std::vector<double> getHighVectorUpSample(const std::vector<double>& arr)
 	return result;
 }
 
-std::vector<Mat_<double>> splitImage(Mat_<double> src)
+std::vector<Mat_<double>> splitImage(const Mat_<double> src)
 {
 	Mat_<double> l = Mat_<double>(src.rows / 2, src.cols);
 	Mat_<double> h = Mat_<double>(src.rows / 2, src.cols);
@@ -127,7 +127,6 @@ std::vector<Mat_<double>> splitImage(Mat_<double> src)
 	for (auto j = 0; j < src.cols; j++)
 	{
 		std::vector<double> copy(src.rows);
-
 		for (auto i = 0; i < src.rows; i++)
 		{
 			copy[i] = src[i][j];
@@ -143,7 +142,6 @@ std::vector<Mat_<double>> splitImage(Mat_<double> src)
 		}
 	}
 
-
 	for (auto i = 0; i < src.rows / 2; i++)
 	{
 		std::vector<double> copy_low(src.cols);
@@ -156,9 +154,9 @@ std::vector<Mat_<double>> splitImage(Mat_<double> src)
 		}
 
 		auto low_low = getLowVector(copy_low);
-		auto high_low = getHighVector(copy_low);
+		auto low_high = getHighVector(copy_low);
 
-		auto low_high = getLowVector(copy_high);
+		auto high_low = getLowVector(copy_high);
 		auto high_high = getHighVector(copy_high);
 
 		for (auto j = 0; j < low_low.size(); j++)
@@ -172,10 +170,9 @@ std::vector<Mat_<double>> splitImage(Mat_<double> src)
 	}
 
 	return std::vector<Mat_<double>>{ll, lh, hl, hh};
-
 }
 
-Mat_<double> reconstructImage(Mat_<double> ll, Mat_<double> lh, Mat_<double> hl, Mat_<double> hh)
+Mat_<double> reconstructImage(const Mat_<double> ll, const Mat_<double> lh, const Mat_<double> hl, const Mat_<double> hh)
 {
 	const int32_t rows = ll.rows;
 	const int32_t cols = ll.cols;
@@ -238,7 +235,7 @@ Mat_<double> reconstructImage(Mat_<double> ll, Mat_<double> lh, Mat_<double> hl,
 	return result;
 }
 
-Mat_<double> reconstructImage(std::vector<Mat_<double>> parts)
+Mat_<double> reconstructImage(const std::vector<Mat_<double>> parts)
 {
 
 #ifdef ASSERTS_ON
@@ -299,14 +296,13 @@ int main()
 		destroyAllWindows();
 		printf("Menu:\n");
 		printf("1 - Split and reconstruct an image\n");
-		scanf("%d",&op);
+		scanf("%d", &op);
 		switch (op)
 		{
-			case 1:
-				splitAndReconstruct();
-				break;
+		case 1:
+			splitAndReconstruct();
+			break;
 		}
-	}
-	while (op!=0);
+	} 	while (op != 0);
 	return 0;
 }
