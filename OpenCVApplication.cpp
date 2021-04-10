@@ -4,6 +4,7 @@
 #include "common.h"
 #include <stdio.h>
 #include <vector>
+#include <deque>
 
 //#define ASSERTS_ON
 
@@ -70,6 +71,20 @@ void testColor2Gray()
 bool inline isPowerOfTwo(const int number)
 {
 	return ((number & (number - 1)) == 0);
+}
+
+double computeAbsoluteMeanError(Mat_<double> original, Mat_<double> result)
+{
+	double mae = 0;
+	for (auto i = 0; i < original.rows; i++)
+	{
+		for (auto j = 0; j < original.cols; j++)
+		{
+			mae += abs(original[i][j] - result[i][j]);
+		}
+	}
+	mae /= (double)(original.rows * original.cols);
+	return mae;
 }
 
 std::vector<double> getLowVector(const std::vector<double>& arr)
@@ -253,6 +268,41 @@ Mat_<double> reconstructImage(const std::vector<Mat_<double>> parts)
 	return reconstructImage(parts[0], parts[1], parts[2], parts[3]);
 }
 
+std::deque<Mat_<double>> splitImageRecursive(const Mat_<double> src, const int min_rows = 16)
+{
+	std::deque<Mat_<double>> result;
+	Mat_<double> ll = src.clone();
+
+	while (ll.rows > min_rows)
+	{
+		auto parts = splitImage(ll);
+		ll = parts[0].clone();
+
+		for (auto i = parts.size() - 1; i >= 1; i--)
+		{
+			result.push_front(parts[i]);
+		}
+	}
+
+	result.push_front(ll);
+	return result;
+}
+
+Mat_<double> reconstructImageRecursive(std::deque<Mat_<double>> parts)
+{
+	auto ll = parts.front(); parts.pop_front();
+	while (!parts.empty())
+	{
+		auto lh = parts.front(); parts.pop_front();
+		auto hl = parts.front(); parts.pop_front();
+		auto hh = parts.front(); parts.pop_front();
+
+		ll = reconstructImage(ll, lh, hl, hh);
+	}
+
+	return ll;
+}
+
 void splitAndReconstruct()
 {
 	char fname[MAX_PATH] = {};
@@ -273,15 +323,86 @@ void splitAndReconstruct()
 		const Mat_<uint8_t> hh = parts[3];
 
 		imshow("LL", ll);
-		imshow("LH", lh);
-		imshow("HL", hl);
-		imshow("HH", hh);
+		imshow("LH", lh + 128);
+		imshow("HL", hl + 128);
+		imshow("HH", hh + 128);
 
-		Mat_<uint8_t> reconstructed = reconstructImage(parts);
-		imshow("Reconstructed", reconstructed);
+		Mat_<double> reconstructed = reconstructImage(parts);
+		Mat_<uint8_t> reconstructed_int = reconstructed;
+		imshow("Reconstructed", reconstructed_int);
 
 		Mat_<uint8_t> original = src;
 		imshow("Original", original);
+
+		double mae = computeAbsoluteMeanError(src, reconstructed);
+		printf("Mean absolute error: %f\n", mae);
+
+		cv::waitKey(0);
+	}
+}
+
+void displayParts(std::deque<Mat_<double>> parts)
+{
+	std::vector<std::pair<std::string, Mat_<uint8_t>>> img_array;
+	char window_name[256] = {};
+	int type = 0;
+
+	for (auto i = 1; i < parts.size(); i++)
+	{
+		Mat_<uint8_t> to_show = parts[i] + 128;
+		sprintf(window_name, "_%d_%d", to_show.rows, to_show.cols);
+
+		switch (type)
+		{
+		case 0:
+			img_array.push_back(std::make_pair("LH" + std::string(window_name), to_show));
+			break;
+		case 1:
+			img_array.push_back(std::make_pair("HL" + std::string(window_name), to_show));
+			break;
+		case 2:
+			img_array.push_back(std::make_pair("HH" + std::string(window_name), to_show));
+			break;
+		}
+		type = (type + 1) % 3;
+	}
+
+	Mat_<uint8_t> ll = parts[0];
+	imshow("LL", ll);
+
+	for (auto& it : img_array)
+	{
+		imshow(it.first, it.second);
+	}
+}
+
+void splitAndReconstructRecursive()
+{
+	char fname[MAX_PATH] = {};
+	while (openFileDlg(fname))
+	{
+		Mat_<double> src = imread(fname, IMREAD_GRAYSCALE);
+
+#ifdef ASSERTS_ON
+		assert(isPowerOfTwo(src.rows));
+		assert(isPowerOfTwo(src.cols));
+#endif // ASSERTS_ON
+		int min_rows = 0;
+		printf("Minimum rows: ");
+		scanf("%d", &min_rows);
+		auto parts = splitImageRecursive(src, min_rows);
+
+		Mat_<double> reconstructed = reconstructImageRecursive(parts);
+		Mat_<uint8_t> reconstructed_int = reconstructed;
+		imshow("Reconstructed", reconstructed_int);
+
+		Mat_<uint8_t> original = src;
+		imshow("Original", original);
+
+		displayParts(parts);
+
+		double mae = computeAbsoluteMeanError(src, reconstructed);
+		printf("Mean absolute error: %f\n", mae);
 
 		cv::waitKey(0);
 	}
@@ -296,11 +417,16 @@ int main()
 		destroyAllWindows();
 		printf("Menu:\n");
 		printf("1 - Split and reconstruct an image\n");
+		printf("2 - Split and reconstruct an image (recursivly)\n");
 		scanf("%d", &op);
 		switch (op)
 		{
 		case 1:
 			splitAndReconstruct();
+			break;
+
+		case 2:
+			splitAndReconstructRecursive();
 			break;
 		}
 	} 	while (op != 0);
