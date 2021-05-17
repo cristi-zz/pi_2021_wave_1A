@@ -6,8 +6,6 @@
 #include <vector>
 #include <deque>
 
-//#define ASSERTS_ON
-
 
 void testOpenImage()
 {
@@ -252,19 +250,6 @@ Mat_<double> reconstructImage(const Mat_<double> ll, const Mat_<double> lh, cons
 
 Mat_<double> reconstructImage(const std::vector<Mat_<double>> parts)
 {
-
-#ifdef ASSERTS_ON
-	assert(parts.size() == 4);
-	for (auto& i : parts)
-	{
-		for (auto& j : parts)
-		{
-			assert(i.cols == j.cols);
-			assert(i.rows == j.rows);
-		}
-	}
-#endif // ASSERTS_ON
-
 	return reconstructImage(parts[0], parts[1], parts[2], parts[3]);
 }
 
@@ -310,11 +295,6 @@ void splitAndReconstruct()
 	{
 		Mat_<double> src = imread(fname, IMREAD_GRAYSCALE);
 
-#ifdef ASSERTS_ON
-		assert(isPowerOfTwo(src.rows));
-		assert(isPowerOfTwo(src.cols));
-#endif // ASSERTS_ON
-
 		auto parts = splitImage(src);
 
 		const Mat_<uint8_t> ll = parts[0];
@@ -356,19 +336,25 @@ void displayParts(std::deque<Mat_<double>> parts)
 		{
 		case 0:
 			img_array.push_back(std::make_pair("LH" + std::string(window_name), to_show));
+			namedWindow("LH" + std::string(window_name), WINDOW_NORMAL | WINDOW_GUI_EXPANDED);
 			break;
 		case 1:
 			img_array.push_back(std::make_pair("HL" + std::string(window_name), to_show));
+			namedWindow("HL" + std::string(window_name), WINDOW_NORMAL | WINDOW_GUI_EXPANDED);
 			break;
 		case 2:
 			img_array.push_back(std::make_pair("HH" + std::string(window_name), to_show));
+			namedWindow("HH" + std::string(window_name), WINDOW_NORMAL | WINDOW_GUI_EXPANDED);
 			break;
 		}
 		type = (type + 1) % 3;
 	}
 
 	Mat_<uint8_t> ll = parts[0];
+	namedWindow("LL", WINDOW_NORMAL | WINDOW_GUI_EXPANDED);
 	imshow("LL", ll);
+
+
 
 	for (auto& it : img_array)
 	{
@@ -379,17 +365,12 @@ void displayParts(std::deque<Mat_<double>> parts)
 void splitAndReconstructRecursive()
 {
 	char fname[MAX_PATH] = {};
+	int min_rows = 0;
+
 	while (openFileDlg(fname))
 	{
 		Mat_<double> src = imread(fname, IMREAD_GRAYSCALE);
-
-#ifdef ASSERTS_ON
-		assert(isPowerOfTwo(src.rows));
-		assert(isPowerOfTwo(src.cols));
-#endif // ASSERTS_ON
-		int min_rows = 0;
-		printf("Minimum rows: ");
-		scanf("%d", &min_rows);
+		printf("Minimum rows: "); scanf("%d", &min_rows);
 		auto parts = splitImageRecursive(src, min_rows);
 
 		Mat_<double> reconstructed = reconstructImageRecursive(parts);
@@ -408,6 +389,105 @@ void splitAndReconstructRecursive()
 	}
 }
 
+void filterH(Mat_<double> src, int threshold)
+{
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src[i][j] < threshold) {
+				src[i][j] = 0;
+			}
+		}
+	}
+}
+
+void splitAndReconstructFilter() {
+	char fname[MAX_PATH] = {};
+	int threshold = 0;
+	int size = 0;
+
+	while (openFileDlg(fname))
+	{
+		printf("Minimum rows: "); scanf("%d", &size);
+		printf("Threshold: "); scanf("%d", &threshold);
+		Mat_<double> src = imread(fname, IMREAD_GRAYSCALE);
+		auto parts = splitImageRecursive(src, size);
+
+		for (int i = 1; i < parts.size(); i++)
+		{
+			filterH(parts[i], threshold);
+		}
+
+		displayParts(parts);
+
+		Mat_<double> reconstructed = reconstructImageRecursive(parts);
+		Mat_<uint8_t> reconstructed_int = reconstructed;
+		imshow("Reconstructed", reconstructed_int);
+
+		Mat_<uint8_t> original = src;
+		imshow("Original", original);
+
+		Mat_<uint8_t> dst(original.rows, original.cols);
+		double avg = 0.0f;
+		for (int i = 0; i < original.rows; i++)
+		{
+			for (int j = 0; j < original.cols; j++)
+			{
+				dst[i][j] = abs(original[i][j] - reconstructed_int[i][j]);
+				avg += dst[i][j];
+			}
+		}
+		avg /= (dst.rows * dst.cols);
+
+		imshow("Original-Reconstructed", dst);
+		printf("Average: %.2f\n", avg);
+
+		cv::waitKey(0);
+	}
+}
+
+void swapLLRecursive() {
+	char fname1[MAX_PATH] = {};
+	char fname2[MAX_PATH] = {};
+	int min_rows = 0;
+
+	if (openFileDlg(fname1) && openFileDlg(fname2))
+	{
+		Mat_<double> src1 = imread(fname1, IMREAD_GRAYSCALE);
+		Mat_<double> src2 = imread(fname2, IMREAD_GRAYSCALE);
+
+		printf("Src1: %dx%d\n", src1.rows, src1.cols);
+		printf("Src2: %dx%d\n", src2.rows, src2.cols);
+
+		printf("Minimum rows: "); scanf("%d", &min_rows);
+
+		auto parts1 = splitImageRecursive(src1, min_rows);
+		auto parts2 = splitImageRecursive(src2, min_rows);
+
+		// swap LLs
+		auto aux = parts1[0];
+		parts1[0] = parts2[0];
+		parts2[0] = aux;
+
+
+		// reconstruire
+		Mat_<double> reconstructed1 = reconstructImageRecursive(parts1);
+		Mat_<uint8_t> reconstructed_int1 = reconstructed1;
+		imshow("Reconstructed imag 1", reconstructed_int1);
+
+		Mat_<double> reconstructed2 = reconstructImageRecursive(parts2);
+		Mat_<uint8_t> reconstructed_int2 = reconstructed2;
+		imshow("Reconstructed imag 2", reconstructed_int2);
+
+		Mat_<uint8_t> original1 = src1;
+		imshow("Original imag 1", original1);
+
+		Mat_<uint8_t> original2 = src2;
+		imshow("Original imag 2", original2);
+
+		cv::waitKey(0);
+	}
+}
+
 int main()
 {
 	int op;
@@ -417,8 +497,11 @@ int main()
 		destroyAllWindows();
 		printf("Menu:\n");
 		printf("1 - Split and reconstruct an image\n");
-		printf("2 - Split and reconstruct an image (recursivly)\n");
+		printf("2 - Split and reconstruct an image (recursively)\n");
+		printf("3 - Split and reconstruct an image + filter *H* (recursively)\n");
+		printf("4 - Swap LLs and reconstruct (recursively)\n");
 		scanf("%d", &op);
+
 		switch (op)
 		{
 		case 1:
@@ -428,7 +511,16 @@ int main()
 		case 2:
 			splitAndReconstructRecursive();
 			break;
+
+		case 3:
+			splitAndReconstructFilter();
+			break;
+
+		case 4:
+			swapLLRecursive();
+			break;
 		}
-	} 	while (op != 0);
+	} while (op != 0);
+
 	return 0;
 }
