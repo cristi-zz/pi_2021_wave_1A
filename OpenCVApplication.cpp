@@ -393,7 +393,7 @@ void filterH(Mat_<double> src, int threshold)
 {
 	for (int i = 0; i < src.rows; i++) {
 		for (int j = 0; j < src.cols; j++) {
-			if (src[i][j] < threshold) {
+			if (abs(src[i][j]) < threshold) {
 				src[i][j] = 0;
 			}
 		}
@@ -438,7 +438,7 @@ void splitAndReconstructFilter() {
 		}
 		avg /= (dst.rows * dst.cols);
 
-		imshow("Original-Reconstructed", dst);
+		imshow("Original-Reconstructed", dst + 128);
 		printf("Average: %.2f\n", avg);
 
 		cv::waitKey(0);
